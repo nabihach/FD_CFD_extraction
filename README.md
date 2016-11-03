@@ -8,6 +8,10 @@ This repository contains the implementation of two algorithms, TANE and CTANE, c
 
 We have also provided several CSV files as test data.
 
+This code was used in the following work:
+"Automatic Discovery of Functional Dependencies and Conditional Functional
+Dependencies: A Comparative Study" (link: https://cs.uwaterloo.ca/~nasghar/848.pdf)
+
 ##Running the code
 
 To run tane.py on a particular csv file (e.g. adult.csv), execute the following command in your terminal:
