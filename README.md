@@ -22,7 +22,7 @@ To run ctane.py on the same data, execute:
 ```
 python ctane.py adult.csv
 ```
-To run ctane.py and obtain k-frequent CfDs, execute:
+To run ctane.py and obtain k-frequent CFDs, execute:
 ```
 python ctane.py adult.csv k
 ```
