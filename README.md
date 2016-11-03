@@ -1,2 +1,26 @@
 # FD_CFD_extraction
-Code to extract functional dependencies (FDs) and conditional functional dependencies (CFDs) from data
+
+This repository contains the implementation of two algorithms, TANE and CTANE, corresponding to the following publications:
+
+1. "TANE: An Efficient Algorithm for Discovering Functional and Approximate Dependencies" (link: https://www.lri.fr/~pierres/donn%E9es/save/these/articles/lpr-queue/huhtala99tane.pdf)
+
+2. "Discovering Conditional Functional Dependencies" (link: http://homepages.inf.ed.ac.uk/fgeerts/pdf/CFDdiscovery.pdf)
+
+We have also provided several CSV files as test data.
+
+##Running the code
+
+To run tane.py on a particular csv file (e.g. adult.csv), execute the following command in your terminal:
+```
+python tane.py adult.csv
+```
+To run ctane.py on the same data, execute:
+```
+python ctane.py adult.csv
+```
+To run ctane.py and obtain k-frequent CfDs, execute:
+```
+python ctane.py adult.csv k
+```
+where k is your integer of choice.
+
