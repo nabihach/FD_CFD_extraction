@@ -7,11 +7,6 @@ Please do not re-distribute without written permission from the author
 Any commerical uses strictly forbidden.
 Code is provided without any guarantees.
 ----------------------------------------------------------------------------------------------"""
-from pandas import *
-from collections import defaultdict
-import numpy as NP
-import itertools
-import sys
 
 def replace_element_in_tuple(tup, elementindex, elementval):
     if type(elementval)==tuple:
@@ -253,38 +248,56 @@ def sortspbasedonx(x,sp):
     return (''.join(new_x), tuple(new_sp))
 
 #------------------------------------------------------- START ---------------------------------------------------
-if len(sys.argv) > 1:
-    infile=str(sys.argv[1])
-if len(sys.argv) > 2:
-    k=int(sys.argv[2])
 
-data2D = read_csv(infile)
+if __name__ == "__main__":
+    from collections import defaultdict
+    import numpy as NP
+    import itertools
+    import sys
+    import os
 
-totaltuples = len(data2D.index)
-listofcolumns = list(data2D.columns.values) # returns ['A', 'B', 'C', 'D', .....]
-tableT = ['NULL']*totaltuples # this is for the table T used in the function partition_product
-k_suppthreshold = k
-L0 = []
+    os.environ["MODIN_ENGINE"] = "dask"
 
-dictpartitions = {} # maps 'stringslikethis' to a list of lists, each of which contains indices
-finallistofCFDs=[]
-L1=populateL1(listofcolumns[:])  # L1 is a list of tuples of the form [ ('A', ('val1') ), ('A', ('val2') ), ..., ('B', ('val3') ), ......]
-dictCplus = {('',()): L1[:]}
-l=1
-L = [L0,L1]
+    from modin.pandas import *
+    # for me it's win32. if you are using linux, please try using:
+    # import multiprocessing.popen_spawn_posix
+    import multiprocessing.popen_spawn_win32
+    from distributed import Client
+    client = Client()
 
-while (not (L[l] == [])):
-    if l==1:
-        initial_Cplus(L[l])
-    else:
-        computeCplus(L[l])
-    compute_dependencies(L[l],listofcolumns[:])
-    prune(L[l])
-    temp = generate_next_level(L[l])
-    L.append(temp)
-    l=l+1
-    #print "List of all CFDs: " , finallistofCFDs
-    #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1    
 
-print("List of all CFDs: " , finallistofCFDs)
-print("Total number of CFDs found: ", len(finallistofCFDs))
+    if len(sys.argv) > 1:
+        infile=str(sys.argv[1])
+    if len(sys.argv) > 2:
+        k=int(sys.argv[2])
+
+    data2D = read_csv(infile)
+
+    totaltuples = len(data2D.index)
+    listofcolumns = list(data2D.columns.values) # returns ['A', 'B', 'C', 'D', .....]
+    tableT = ['NULL']*totaltuples # this is for the table T used in the function partition_product
+    k_suppthreshold = k
+    L0 = []
+
+    dictpartitions = {} # maps 'stringslikethis' to a list of lists, each of which contains indices
+    finallistofCFDs=[]
+    L1=populateL1(listofcolumns[:])  # L1 is a list of tuples of the form [ ('A', ('val1') ), ('A', ('val2') ), ..., ('B', ('val3') ), ......]
+    dictCplus = {('',()): L1[:]}
+    l=1
+    L = [L0,L1]
+
+    while (not (L[l] == [])):
+        if l==1:
+            initial_Cplus(L[l])
+        else:
+            computeCplus(L[l])
+        compute_dependencies(L[l],listofcolumns[:])
+        prune(L[l])
+        temp = generate_next_level(L[l])
+        L.append(temp)
+        l=l+1
+        #print "List of all CFDs: " , finallistofCFDs
+        #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1    
+
+    print("List of all CFDs: " , finallistofCFDs)
+    print("Total number of CFDs found: ", len(finallistofCFDs))
