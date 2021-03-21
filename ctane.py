@@ -105,7 +105,7 @@ def computeCplus(level): # for each tuple (x,sp) in the list level, it computes 
     global dictCplus
     listofcols = listofcolumns[:]
     for (x,sp) in level: #sp is a tuple of strings like this: ('aa', 'bb', 'cc') or ('aa', )     
-       thesets=[]
+        thesets=[]
         for b in x:
             indx = x.index(b) # the index where b is located in x
             spcopy =  spXminusA(sp, x, b)     ### tuple(y for y in sp if not sp.index(y)==indx)
@@ -286,5 +286,5 @@ while (not (L[l] == [])):
     #print "List of all CFDs: " , finallistofCFDs
     #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1    
 
-print "List of all CFDs: " , finallistofCFDs
-print "Total number of CFDs found: ", len(finallistofCFDs)
+print("List of all CFDs: " , finallistofCFDs)
+print("Total number of CFDs found: ", len(finallistofCFDs))
