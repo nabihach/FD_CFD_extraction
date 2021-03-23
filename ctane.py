@@ -162,7 +162,7 @@ def computeAttributePartitions(listofcols): # compute partitions for every attri
     attributepartitions = {}
     for a in listofcols:
         attributepartitions[a]=[]
-        for element in list_duplicates(data2D[a].tolist()): # list_duplicates returns 2-tuples, where 1st is a value, and 2nd is a list of indices where that value occurs
+        for element in list_duplicates(list(data2D[a])): # list_duplicates returns 2-tuples, where 1st is a value, and 2nd is a list of indices where that value occurs
             if len(element[1])>0: # if >1, then ignore singleton equivalence classes
                 attributepartitions[a].append(element[1])
     return attributepartitions
@@ -252,6 +252,7 @@ def sortspbasedonx(x,sp):
 if __name__ == "__main__":
     from collections import defaultdict
     import numpy as NP
+    import string
     import itertools
     import sys
     import os
@@ -260,8 +261,8 @@ if __name__ == "__main__":
 
     from modin.pandas import *
     # for me it's win32. if you are using linux, please try using:
-    # import multiprocessing.popen_spawn_posix
-    import multiprocessing.popen_spawn_win32
+    import multiprocessing.popen_spawn_posix
+    # import multiprocessing.popen_spawn_win32
     from distributed import Client
     client = Client()
 
@@ -274,7 +275,7 @@ if __name__ == "__main__":
     data2D = read_csv(infile)
 
     totaltuples = len(data2D.index)
-    listofcolumns = list(data2D.columns.values) # returns ['A', 'B', 'C', 'D', .....]
+    listofcolumns = list(data2D.columns) # returns ['A', 'B', 'C', 'D', .....]
     tableT = ['NULL']*totaltuples # this is for the table T used in the function partition_product
     k_suppthreshold = k
     L0 = []
@@ -288,16 +289,49 @@ if __name__ == "__main__":
 
     while (not (L[l] == [])):
         if l==1:
+            print("l == 1")
             initial_Cplus(L[l])
         else:
+            print("l != 1")
             computeCplus(L[l])
+        print("computing the dependencies")
         compute_dependencies(L[l],listofcolumns[:])
+        print("pruning..")
         prune(L[l])
+        print("generating the next level")
+        # taking longggg
         temp = generate_next_level(L[l])
         L.append(temp)
         l=l+1
+        print("One iteration done...\n")    
         #print "List of all CFDs: " , finallistofCFDs
-        #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1    
+        #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1      
+
+    # have to manually map columns...
+    column_mapping = {
+        "A": "Age",
+        "B": "Workclass",
+        "C": "fnlwgt",
+        "D": "Education",
+        "E": "Education-num",
+        "F": "Marital Status",
+        "G": "Occupation",
+        "H": "Relationship",
+        "I": "Race",
+        "J": "Gender",
+        "K": "Capital-Gain",
+        "L": "Capital-Loss",
+        "M": "HoursPerWeek",
+        "N": "Native-Country",
+        "O": "Class"
+    }
+
+    for CFD in finallistofCFDs:
+        for i, cols in enumerate(CFD[:2]):
+            mapping = ""
+            for col in cols:
+                mapping += f"{column_mapping[col]}, "
+            CFD[i] = mapping.rstrip(", ")
 
     print("List of all CFDs: " , finallistofCFDs)
     print("Total number of CFDs found: ", len(finallistofCFDs))
