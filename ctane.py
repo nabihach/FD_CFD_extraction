@@ -356,5 +356,5 @@ if __name__ == "__main__":
                     mapping += f"{column_mapping[col]}, "
                 CFD[i] = mapping.rstrip(", ")
 
-        print("List of all CFDs: " , finallistofCFDs)
+        print(f"List of {col_pair}'s CFDs: " , finallistofCFDs)
         print("Total number of CFDs found: ", len(finallistofCFDs))
