@@ -247,22 +247,41 @@ def sortspbasedonx(x,sp):
     new_sp = [point[1] for point in sorted_points]
     return (''.join(new_x), tuple(new_sp))
 
+def correlation_matrix(data_path):   
+    data = pandas.read_csv(data_path) 
+    x = data.phik_matrix()
+    x = x.replace(to_replace = 1, value = 0) # this removes any 1:1 corrolation ie: age:age, experience:experience etc.
+    return x
+
+def remove_redundant_corrs(corr_matrix):
+    """ Returns a dict of all the feature pair correlations """
+    corr_dict = corr_matrix.unstack().to_dict()
+
+    filtered_corrs = {}
+    for col_pair, corr in list(corr_dict.items()):
+        if corr == 0 or \
+        sorted(col_pair) in [sorted(key) for key in list(filtered_corrs.keys())]: 
+            continue
+
+        filtered_corrs[col_pair] = corr
+
+    return filtered_corrs
 #------------------------------------------------------- START ---------------------------------------------------
 
 if __name__ == "__main__":
     from collections import defaultdict
     import numpy as NP
-    import string
-    import itertools
+    import pandas
     import sys
     import os
+    import phik
 
     os.environ["MODIN_ENGINE"] = "dask"
 
     from modin.pandas import *
     # for me it's win32. if you are using linux, please try using:
-    import multiprocessing.popen_spawn_posix
-    # import multiprocessing.popen_spawn_win32
+    # import multiprocessing.popen_spawn_posix
+    import multiprocessing.popen_spawn_win32
     from distributed import Client
     client = Client()
 
@@ -274,64 +293,67 @@ if __name__ == "__main__":
 
     data2D = read_csv(infile)
 
-    totaltuples = len(data2D.index)
-    listofcolumns = list(data2D.columns) # returns ['A', 'B', 'C', 'D', .....]
-    tableT = ['NULL']*totaltuples # this is for the table T used in the function partition_product
-    k_suppthreshold = k
-    L0 = []
+    corr_matrix = correlation_matrix(infile)
+    filtered_corrs = remove_redundant_corrs(corr_matrix)
 
-    dictpartitions = {} # maps 'stringslikethis' to a list of lists, each of which contains indices
-    finallistofCFDs=[]
-    L1=populateL1(listofcolumns[:])  # L1 is a list of tuples of the form [ ('A', ('val1') ), ('A', ('val2') ), ..., ('B', ('val3') ), ......]
-    dictCplus = {('',()): L1[:]}
-    l=1
-    L = [L0,L1]
+    # totaltuples = len(data2D.index)
+    # listofcolumns = list(data2D.columns) # returns ['A', 'B', 'C', 'D', .....]
+    # tableT = ['NULL']*totaltuples # this is for the table T used in the function partition_product
+    # k_suppthreshold = k
+    # L0 = []
 
-    while (not (L[l] == [])):
-        if l==1:
-            print("l == 1")
-            initial_Cplus(L[l])
-        else:
-            print("l != 1")
-            computeCplus(L[l])
-        print("computing the dependencies")
-        compute_dependencies(L[l],listofcolumns[:])
-        print("pruning..")
-        prune(L[l])
-        print("generating the next level")
-        # taking longggg
-        temp = generate_next_level(L[l])
-        L.append(temp)
-        l=l+1
-        print("One iteration done...\n")    
-        #print "List of all CFDs: " , finallistofCFDs
-        #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1      
+    # dictpartitions = {} # maps 'stringslikethis' to a list of lists, each of which contains indices
+    # finallistofCFDs=[]
+    # L1=populateL1(listofcolumns[:])  # L1 is a list of tuples of the form [ ('A', ('val1') ), ('A', ('val2') ), ..., ('B', ('val3') ), ......]
+    # dictCplus = {('',()): L1[:]}
+    # l=1
+    # L = [L0,L1]
 
-    # have to manually map columns...
-    column_mapping = {
-        "A": "Age",
-        "B": "Workclass",
-        "C": "fnlwgt",
-        "D": "Education",
-        "E": "Education-num",
-        "F": "Marital Status",
-        "G": "Occupation",
-        "H": "Relationship",
-        "I": "Race",
-        "J": "Gender",
-        "K": "Capital-Gain",
-        "L": "Capital-Loss",
-        "M": "HoursPerWeek",
-        "N": "Native-Country",
-        "O": "Class"
-    }
+    # while (not (L[l] == [])):
+    #     if l==1:
+    #         print("l == 1")
+    #         initial_Cplus(L[l])
+    #     else:
+    #         print("l != 1")
+    #         computeCplus(L[l])
+    #     print("computing the dependencies")
+    #     compute_dependencies(L[l],listofcolumns[:])
+    #     print("pruning..")
+    #     prune(L[l])
+    #     print("generating the next level")
+    #     # taking longggg
+    #     temp = generate_next_level(L[l])
+    #     L.append(temp)
+    #     l=l+1
+    #     print("One iteration done...\n")    
+    #     #print "List of all CFDs: " , finallistofCFDs
+    #     #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1      
 
-    for CFD in finallistofCFDs:
-        for i, cols in enumerate(CFD[:2]):
-            mapping = ""
-            for col in cols:
-                mapping += f"{column_mapping[col]}, "
-            CFD[i] = mapping.rstrip(", ")
+    # # have to manually map columns...
+    # column_mapping = {
+    #     "A": "Age",
+    #     "B": "Workclass",
+    #     "C": "fnlwgt",
+    #     "D": "Education",
+    #     "E": "Education-num",
+    #     "F": "Marital Status",
+    #     "G": "Occupation",
+    #     "H": "Relationship",
+    #     "I": "Race",
+    #     "J": "Gender",
+    #     "K": "Capital-Gain",
+    #     "L": "Capital-Loss",
+    #     "M": "HoursPerWeek",
+    #     "N": "Native-Country",
+    #     "O": "Class"
+    # }
 
-    print("List of all CFDs: " , finallistofCFDs)
-    print("Total number of CFDs found: ", len(finallistofCFDs))
+    # for CFD in finallistofCFDs:
+    #     for i, cols in enumerate(CFD[:2]):
+    #         mapping = ""
+    #         for col in cols:
+    #             mapping += f"{column_mapping[col]}, "
+    #         CFD[i] = mapping.rstrip(", ")
+
+    # print("List of all CFDs: " , finallistofCFDs)
+    # print("Total number of CFDs found: ", len(finallistofCFDs))
