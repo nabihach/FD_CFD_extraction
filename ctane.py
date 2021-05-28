@@ -7,11 +7,6 @@ Please do not re-distribute without written permission from the author
 Any commerical uses strictly forbidden.
 Code is provided without any guarantees.
 ----------------------------------------------------------------------------------------------"""
-from pandas import *
-from collections import defaultdict
-import numpy as NP
-import itertools
-import sys
 
 def replace_element_in_tuple(tup, elementindex, elementval):
     if type(elementval)==tuple:
@@ -105,7 +100,7 @@ def computeCplus(level): # for each tuple (x,sp) in the list level, it computes 
     global dictCplus
     listofcols = listofcolumns[:]
     for (x,sp) in level: #sp is a tuple of strings like this: ('aa', 'bb', 'cc') or ('aa', )     
-       thesets=[]
+        thesets=[]
         for b in x:
             indx = x.index(b) # the index where b is located in x
             spcopy =  spXminusA(sp, x, b)     ### tuple(y for y in sp if not sp.index(y)==indx)
@@ -167,7 +162,7 @@ def computeAttributePartitions(listofcols): # compute partitions for every attri
     attributepartitions = {}
     for a in listofcols:
         attributepartitions[a]=[]
-        for element in list_duplicates(data2D[a].tolist()): # list_duplicates returns 2-tuples, where 1st is a value, and 2nd is a list of indices where that value occurs
+        for element in list_duplicates(list(data2D[a])): # list_duplicates returns 2-tuples, where 1st is a value, and 2nd is a list of indices where that value occurs
             if len(element[1])>0: # if >1, then ignore singleton equivalence classes
                 attributepartitions[a].append(element[1])
     return attributepartitions
@@ -252,39 +247,114 @@ def sortspbasedonx(x,sp):
     new_sp = [point[1] for point in sorted_points]
     return (''.join(new_x), tuple(new_sp))
 
+def correlation_matrix(data_path):   
+    data = pandas.read_csv(data_path) 
+    x = data.phik_matrix()
+    x = x.replace(to_replace = 1, value = 0) # this removes any 1:1 corrolation ie: age:age, experience:experience etc.
+    return x
+
+def remove_redundant_corrs(corr_matrix):
+    """ Returns a dict of all the feature pair correlations """
+    corr_dict = corr_matrix.unstack().to_dict()
+
+    filtered_corrs = {}
+    for col_pair, corr in list(corr_dict.items()):
+        if corr == 0 or \
+        sorted(col_pair) in [sorted(key) for key in list(filtered_corrs.keys())]: 
+            continue
+
+        filtered_corrs[col_pair] = corr
+
+    return filtered_corrs
 #------------------------------------------------------- START ---------------------------------------------------
-if len(sys.argv) > 1:
-    infile=str(sys.argv[1])
-if len(sys.argv) > 2:
-    k=int(sys.argv[2])
 
-data2D = read_csv(infile)
+if __name__ == "__main__":
+    from collections import defaultdict
+    import numpy as NP
+    import pandas
+    import sys
+    import os
+    import phik
 
-totaltuples = len(data2D.index)
-listofcolumns = list(data2D.columns.values) # returns ['A', 'B', 'C', 'D', .....]
-tableT = ['NULL']*totaltuples # this is for the table T used in the function partition_product
-k_suppthreshold = k
-L0 = []
+    os.environ["MODIN_ENGINE"] = "dask"
 
-dictpartitions = {} # maps 'stringslikethis' to a list of lists, each of which contains indices
-finallistofCFDs=[]
-L1=populateL1(listofcolumns[:])  # L1 is a list of tuples of the form [ ('A', ('val1') ), ('A', ('val2') ), ..., ('B', ('val3') ), ......]
-dictCplus = {('',()): L1[:]}
-l=1
-L = [L0,L1]
+    from modin.pandas import *
+    # for me it's win32. if you are using linux, please try using:
+    # import multiprocessing.popen_spawn_posix
+    import multiprocessing.popen_spawn_win32
+    from distributed import Client
+    client = Client()
 
-while (not (L[l] == [])):
-    if l==1:
-        initial_Cplus(L[l])
-    else:
-        computeCplus(L[l])
-    compute_dependencies(L[l],listofcolumns[:])
-    prune(L[l])
-    temp = generate_next_level(L[l])
-    L.append(temp)
-    l=l+1
-    #print "List of all CFDs: " , finallistofCFDs
-    #print "CFDs found: ", len(finallistofCFDs), ", level = ", l-1    
 
-print "List of all CFDs: " , finallistofCFDs
-print "Total number of CFDs found: ", len(finallistofCFDs)
+    if len(sys.argv) > 1:
+        infile=str(sys.argv[1])
+    # if len(sys.argv) > 2:
+    #     k=int(sys.argv[2])
+
+    data2D = read_csv(infile)
+
+    thresh = lambda corr: 2 if corr >=0.46 else 2
+
+    corr_matrix = correlation_matrix(infile)
+    filtered_corrs = remove_redundant_corrs(corr_matrix)
+    mapped_col_k_vals = {col_pair: thresh(corr) for col_pair, corr in filtered_corrs.items()}
+    
+    for col_pair, k in mapped_col_k_vals.items():
+        totaltuples = len(data2D.index)
+        listofcolumns = list(col_pair) # returns ['A', 'B', 'C', 'D', .....]
+        tableT = ['NULL']*totaltuples # this is for the table T used in the function partition_product
+        k_suppthreshold = k
+        L0 = []
+
+        dictpartitions = {} # maps 'stringslikethis' to a list of lists, each of which contains indices
+        finallistofCFDs=[]
+        L1=populateL1(listofcolumns[:])  # L1 is a list of tuples of the form [ ('A', ('val1') ), ('A', ('val2') ), ..., ('B', ('val3') ), ......]
+        dictCplus = {('',()): L1[:]}
+        l=1
+        L = [L0,L1]
+
+        while (not (L[l] == [])):
+            if l==1:
+                # print("l == 1")
+                initial_Cplus(L[l])
+            else:
+                # print("l != 1")
+                computeCplus(L[l])
+            # print("computing the dependencies")
+            compute_dependencies(L[l],listofcolumns[:])
+            # print("pruning..")
+            prune(L[l])
+            # print("generating the next level")
+            temp = generate_next_level(L[l])
+            L.append(temp)
+            l=l+1
+            # print("One iteration done...\n")       
+
+        # have to manually map columns...
+        column_mapping = {
+            "A": "Age",
+            "B": "Workclass",
+            "C": "fnlwgt",
+            "D": "Education",
+            "E": "Education-num",
+            "F": "Marital Status",
+            "G": "Occupation",
+            "H": "Relationship",
+            "I": "Race",
+            "J": "Gender",
+            "K": "Capital-Gain",
+            "L": "Capital-Loss",
+            "M": "HoursPerWeek",
+            "N": "Native-Country",
+            "O": "Class"
+        }
+
+        for CFD in finallistofCFDs:
+            for i, cols in enumerate(CFD[:2]):
+                mapping = ""
+                for col in cols:
+                    mapping += f"{column_mapping[col]}, "
+                CFD[i] = mapping.rstrip(", ")
+
+        print(f"List of {col_pair}'s CFDs: " , finallistofCFDs)
+        print("Total number of CFDs found: ", len(finallistofCFDs))
